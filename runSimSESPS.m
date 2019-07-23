@@ -35,74 +35,69 @@ catch
             'and put it into the folder 01_profileData']);
 end
     
-load_profiles{1,1} = int16(IndustryProfiles.ip_for_ref_sp_cluster1*100); % values between 0 and 1
-load_profiles{1,2} = int16(IndustryProfiles.ip_for_ref_sp_cluster2*100);
-load_profiles{1,3} = int16(IndustryProfiles.ip_for_ref_sp_cluster3*100);
+load_profile = IndustryProfiles.loadProfile; % values between 0 and 1
 
-efficiency_sim = zeros(length(load_profiles),1);
-PS_limit_sim = zeros(length(load_profiles),1);
-PS.power_storage = zeros(length(load_profiles),(inputSim.simEnd-inputSim.simStart)/inputSim.tSample);
+efficiency_sim = zeros(length(load_profile),1);
+PS_limit_sim = zeros(length(load_profile),1);
+PS.power_storage = zeros(1,(inputSim.simEnd-inputSim.simStart)/inputSim.tSample);
 
 
-%             1    2   3
-PS_limit_opt = ...
-	   1e5*[0.66,0.83,0.80];   
+% Peak Shaving limit
+PS_limit_opt = 1e5*0.804;   
    
-for profile = 1:3
+inputTech.pPeakShaveThresh = PS_limit_opt;
+inputTech.pPeakShaveThresh = ceil(inputTech.pPeakShaveThresh/1e3)*1e3;
+inputTech.loadProfile	= load_profile; 
 
-	inputTech.pPeakShaveThresh = PS_limit_opt(profile);
-	inputTech.pPeakShaveThresh = ceil(inputTech.pPeakShaveThresh/1e3)*1e3;
-	inputTech.loadProfile	= double(load_profiles{1,profile}); % [values between 0 and 100]; 
+inputSim.loadProfileLength  = gvarYEARS2SECONDS;        % [s] length of input load profile
 
-	inputSim.loadProfileLength  = gvarYEARS2SECONDS;        % [s] length of input load profile
-    
-    inputTech.pPeak = 1e5; % set to 100kW
+inputTech.pPeak = 1e5; % set to 100kW
 
-	%% Simulation parameters
-	inputSim.plotFrom       = inputSim.simStart;            % [s] starting time of plot
-	inputSim.plotTo         = inputSim.simEnd;              % [s] last time to be included in plot
-	inputSim.plotTimeUnit   = 'hours';                       % [-] depicts time unit for plotting (ticks of x-axis)
+%% Simulation parameters
+inputSim.plotFrom       = inputSim.simStart;            % [s] starting time of plot
+inputSim.plotTo         = inputSim.simEnd;              % [s] last time to be included in plot
+inputSim.plotTimeUnit   = 'hours';                       % [-] depicts time unit for plotting (ticks of x-axis)
 
-	run('createTechParamPeakShave.m')
-		ees = peakshave( ...
-			 'inputSim',         inputSim,       ...
-			 'inputTech',        inputTech,      ...
-			 'inputProfiles',    inputProfiles   );
-	% Clear unnecessary workspace data
-	clear loadProfile
-	% Run simulation with generated object.
-		disp('Start Matlab Simulation')         % Display start of simulation at command window 
-		tic   
-		ees = runPSStorage( ees );              % call run storage method for simulation run
-		toc
-		disp('Simulation complete'); 
-	% Call evaluation functions for analysis of simulation.
-		disp('Evaluating:')
-		ees = evalTechnicalPeakShave( ees );  % calculate technical assessment values
-    
-    % Plotting
-    if inputSim.flagPlot
-        disp('Plotting.')
-            % Get number of figures that are currently open
-        h =  findobj('type','figure');
-        openFigures = length(h);
+run('createTechParamPeakShave.m')
+    ees = peakshave( ...
+         'inputSim',         inputSim,       ...
+         'inputTech',        inputTech,      ...
+         'inputProfiles',    inputProfiles   );
+% Clear unnecessary workspace data
+clear loadProfile
+% Run simulation with generated object.
+    disp('Start Matlab Simulation')         % Display start of simulation at command window 
+    tic   
+    ees = runPSStorage( ees );              % call run storage method for simulation run
+    toc
+    disp('Simulation complete'); 
+% Call evaluation functions for analysis of simulation.
+    disp('Evaluating:')
+    ees = evalTechnicalPeakShave( ees );  % calculate technical assessment values
 
-        plotStorageData( ees,   'figureNo',     openFigures + 1,                        ...
-            'timeFrame',    [ees.inputSim.plotFrom ees.inputSim.plotTo],    ...
-            'timeUnit',     ees.inputSim.plotTimeUnit);
+% Plotting
+if inputSim.flagPlot
+    disp('Plotting.')
+        % Get number of figures that are currently open
+    h =  findobj('type','figure');
+    openFigures = length(h);
 
-        % Plotting of aging results when logging values are available
-        if(inputSim.flagLogAging && ~strcmp(inputTech.typeAgingMdl, 'no aging'))
-            plotAging( ees, 'figureNo', openFigures + 3, 'timeUnit', ees.inputSim.plotTimeUnit, 'scaleYAxis', 'log');
-        end     
-    end
-        
-	%% Saving workspace variables.
-	% Save ees object.
-	if inputSim.flagSave
-		% When specifying filepaths, use / instead of \ for
-		% unix & macOS compability. Windows handles / just fine
-		save(['03_simulationResults/EES_PS_profile_',num2str(profile,'%02d'),'.mat'], 'ees');
-		disp('Results saved.')
-	end
+    plotStorageData( ees,   'figureNo',     openFigures + 1,                        ...
+        'timeFrame',    [ees.inputSim.plotFrom ees.inputSim.plotTo],    ...
+        'timeUnit',     ees.inputSim.plotTimeUnit);
+
+    % Plotting of aging results when logging values are available
+    if(inputSim.flagLogAging && ~strcmp(inputTech.typeAgingMdl, 'no aging'))
+        plotAging( ees, 'figureNo', openFigures + 3, 'timeUnit', ees.inputSim.plotTimeUnit, 'scaleYAxis', 'log');
+    end     
 end
+
+%% Saving workspace variables.
+% Save ees object.
+if inputSim.flagSave
+    % When specifying filepaths, use / instead of \ for
+    % unix & macOS compability. Windows handles / just fine
+    save(['03_simulationResults/EES_PS_profile','.mat'], 'ees');
+    disp('Results saved.')
+end
+

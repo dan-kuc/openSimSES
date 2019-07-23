@@ -203,7 +203,7 @@ switch lower(typeBatt)
         nSerial     = ceil(voltBattNom / Cell.U_Nom);           % [-] no of serial cells
         nParallel   = ceil(eBattNom / (eNom * nSerial) );       % [-] no of parallel cells
         nCells      = nSerial * nParallel;                      % [-] total no of cells
-%         uNom        = Cell.U_Nom * nSerial;
+%         uNom        = Cell.U_Nom * nSerial;  
         % OCV
         disp('Battery specified capacity (in kWh)')
         eBattNom/3600000
